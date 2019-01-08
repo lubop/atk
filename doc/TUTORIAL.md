@@ -242,7 +242,122 @@ bp.php  cf.php  da.php  el.php  es.php  fr.php  id.php  ja.php  no.php  pt.php  
 This is the complete list of languages that atk is translated to, if your language isn't there, copy the **en.php** to your **xx.php**, translate it and add it to the project git.
 
 ### Our first Module
- *this is work in progress *
+
+Have you checked your application via your browser ? Exploring a bit under authentication menu, you can see that we already have :
+- A full authentication system, featuring [Universal second factor](https://en.wikipedia.org/wiki/Universal_2nd_Factor) authentication.
+- An ACL management for users and tables.
+
+Nice, isn't it ?
+
+Our first module will consist of the list of conferences, stored as a table in database. Our `app_conference` table will carry title, subtitle and speakers as a VARCHAR field, description as a TEXT field, room as one value among 'Borg', 'Adams' and 'Dijkstra', a start time and a duration. So run `mysql -u conference --database conference -p` and type :
+```
+CREATE TABLE `app_conference` (
+  `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
+  `title` varchar(255) DEFAULT NULL,
+  `subtitle` varchar(512) DEFAULT NULL,
+  `speakers` varchar(200) DEFAULT NULL, -- For the moment, let's juste store speakers in a text field
+  `description` text,
+  `room` ENUM('Borg', 'Adams', 'Dijkstra') NOT NULL DEFAULT 'Borg', -- We have 3 rooms in the conference center
+  `start` timestamp NOT NULL, -- Date/time of the conference
+  `duration` tinyint NOT NULL, -- How long it will last (in seconds)
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+```
+
+You can also simply `source tutorial-data/01_first_module.sql` from [atk-tutorial project](https://github.com/Samuel-BF/atk-tutorial), which holds the code of the final version of this tutorial and sample data.
+
+OK, so now we have the database ready. Let's add a "Conferences" module handling all operations on it. Application modules reside in **src/Modules/App** directory. There's already **Module.php** file, which we'll see few lines later, and **testNode.php**, a small sample module. Rename it **Conference.php** and modify it to fit to `app_conference` structure:
+
+```
+class Conference extends Node
+{
+    function __construct($nodeUri)
+    {
+        parent::__construct($nodeUri, Node::NF_ADD_LINK | Node::NF_EDITAFTERADD);
+        $this->setTable('app_conference');
+
+        $this->add(new Attribute('id', Attribute::AF_AUTOKEY));
+        $this->add(new Attribute('title', Attribute::AF_OBLIGATORY));
+        $this->add(new Attribute('subtitle'));
+        $this->add(new Attribute('speakers'));
+        $this->add(new TextAttribute('description'));
+        $this->add(new Attribute('room'));
+        $this->add(new Attribute('start', Attribute::AF_OBLIGATORY));
+        $this->add(new Attribute('duration', Attribute::AF_OBLIGATORY));
+
+        $this->setDescriptorTemplate('[title]');
+    }
+}
+```
+
+So what's in it ? Code is quite explicit :
+- **setTable** : defines the name of the table where the data resides for Conference module.
+- **Attribute** : defines a field inside the table, with some options that can be set.
+- **TextAttribute** : defines a longer field.
+- **setDescriptorTemplate** (less obvious): defines the title of the page when viewing or editing a field. Here, it will consist of the 'title' field.
+
+To use it, modify **Module.php** (we're still in **src/Modules/App**) : 
+
+```
+class Module extends \Sintattica\Atk\Core\Module
+{
+    static $module = 'app';
+
+    public function register()
+    {
+        $this->registerNode('conference', Conference::class, ['admin', 'add', 'edit', 'delete']);
+    }
+
+    public function boot()
+    {
+        $this->addNodeToMenu('Conferences', 'conference', 'admin');
+    }
+}
+```
+
+Here, two functions are used :
+- **registerNode** : references the Conference module and defines actions that can be triggered on it. 'admin' is a page listing values and linking to add, edit and delete forms. Another possible action is 'search'.
+- **addNodeToMenu** : first argument is title displayed on the menu, second argument is the name of the Module and third argument is the default action when clicking the link on the menu.
+
+What does it look like ? On your application, there's now a 'Conferences' link on the menu which brings you to page listing all conferences registered and allowing to manage them. Try to add, edit or view a conference : it just works. Well, in fact it's not so easy to set 'Room', 'start' and 'duration' fields. Hopefully you can be more specific about the kind of field it is : e-mail, date, IP address, password, ... All field types are listed under [src/Attributes](../src/Attributes/). Here, we'll logically use ListAttribute, DateTimeAttribute and DurationAttribute in **Conference.php**. First, add at the beginning of the script :
+
+```
+use Sintattica\Atk\Attributes\DateTimeAttribute;
+use Sintattica\Atk\Attributes\DurationAttribute;
+use Sintattica\Atk\Attributes\ListAttribute;
+```
+
+And also modify their definitions to :
+
+```
+        $this->add(new ListAttribute('room', Attribute::AF_OBLIGATORY, ['Borg', 'Adams', 'Dijkstra']));
+        $this->add(new DateTimeAttribute('start', Attribute::AF_OBLIGATORY));
+        $this->add(new DurationAttribute('duration', Attribute::AF_OBLIGATORY));
+```
+
+In ListAttribute constructor, the third argument is as you probably guessed the list of values (and if there is a difference between values stored in the database and values shown in the application, add a fourth argument holding shown values).
+
+Check once again the application : you now have a more friendly edit form and values are correctly shown in admin and view pages. Nice !
+
+Could it be better ? Yes. Let's review available options for Attributes. They are listed at the beginning of [Attribute class](../src/Attributes/Attribute.php) (you also have specific optionsfor each kind of field listed in their respective definition class). Here are some options that I find useful :
+
+- **AF_OBLIGATORY** : it says that there should be a value set for this field.
+- **AF_AUTOKEY** : used for hidden primary keys that autoincrement. There's almost always one in each of your Modules.
+- **AF_HIDE** : don't show the field.
+- **AF_HIDE_(LIST|ADD|EDIT|SELECT|VIEW|SEARCH)** : don't show the field in specific page.
+- **AF_SEARCHABLE** : in the admin page, add a form allowing to search items according to this field.
+
+We can now tune a bit more our Conference module, hiding potentially long descriptions from list view and allowing a quick search on title, speakers and room :
+
+```
+        $this->add(new Attribute('title', Attribute::AF_OBLIGATORY | Attribute::AF_SEARCHABLE));
+        $this->add(new Attribute('subtitle'));
+        $this->add(new Attribute('speakers', Attribute::AF_SEARCHABLE));
+        $this->add(new TextAttribute('description', Attribute::AF_HIDE_LIST));
+        $this->add(new ListAttribute('room', Attribute::AF_OBLIGATORY | Attribute::AF_SEARCHABLE, ['Borg', 'Adams', 'Dijkstra']));
+```
+
+And that's it! In very few lines, you already have a nice micro-application for managing conferences.
  
 ## Let's dive further: Adding a Relation				
 
