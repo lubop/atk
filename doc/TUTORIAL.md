@@ -264,7 +264,7 @@ CREATE TABLE `app_conference` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 ```
 
-You can also simply `source tutorial-data/01_first_module.sql` from [atk-tutorial project](https://github.com/Samuel-BF/atk-tutorial), which holds the code of the final version of this tutorial and sample data.
+You can also simply do `mysql conference -u conference -p < tutorial-data/01_first_module.sql` from [atk-tutorial project](https://github.com/Samuel-BF/atk-tutorial), which holds the code of the final version of this tutorial and sample data.
 
 OK, so now we have the database ready. Let's add a "Conferences" module handling all operations on it. Application modules reside in **src/Modules/App** directory. There's already **Module.php** file, which we'll see few lines later, and **testNode.php**, a small sample module. Rename it **Conference.php** and modify it to fit to `app_conference` structure:
 
