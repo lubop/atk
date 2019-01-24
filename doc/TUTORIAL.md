@@ -361,4 +361,85 @@ And that's it! In very few lines, you already have a nice micro-application for 
  
 ## Let's dive further: Adding a Relation				
 
+As you know, the R in [RDBMS](https://en.wikipedia.org/wiki/Relational_database_management_system) stands for "Relational" : tables are in relations with each other to store structured data. So let's add a bit of complexity here, adding a "room" table to list them rather than hard-coding the value in the conference structure. We'll also add a capacity field to this table, telling how much people can attend to a conference in each room.
+
+For this part, we need a app_room table in the database and to modify app_conference to reference IDs in app_room. So let's run this against the database :
+
+```
+DROP TABLE IF EXISTS `app_room`;
+CREATE TABLE `app_room` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `name` varchar(50) NOT NULL,
+  `capacity` smallint unsigned NOT NULL,
+  `description` text,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+ALTER TABLE app_conference CHANGE room_id smallint NOT NULL;
+``
+
+Like in previous section, you can use [tutorial-data/02_relations.sql](https://github.com/Samuel-BF/atk-tutorial/blob/master/tutorial-data/02_relations) from [atk-tutorial project](https://github.com/Samuel-BF/atk-tutorial) which also contains some sample data.
+
+Now that we have the app_room table, let's add a page to manage this data. As you already know, it's quite straightforward. Add a file **Room.php** in **src/Modules/App** with :
+
+```
+<?php
+namespace App\Modules\App;
+
+use Sintattica\Atk\Core\Node;
+use Sintattica\Atk\Attributes\Attribute;
+use Sintattica\Atk\Attributes\NumberAttribute;
+use Sintattica\Atk\Security\SecurityManager;
+
+class Room extends Node
+{
+    function __construct($nodeUri)
+    {
+        parent::__construct($nodeUri, Node::NF_ADD_LINK | Node::NF_EDITAFTERADD);
+        $this->setTable('app_room');
+
+        $this->add(new Attribute('id', Attribute::AF_AUTOKEY));
+        $this->add(new Attribute('name', Attribute::AF_OBLIGATORY));
+        $this->add(new NumberAttribute('capacity'));
+
+        $this->setDescriptorTemplate('[name]');
+    }
+}
+```
+
+You notice here that we used the more specific 'NumberAttribute' from the framework. Then, just reference this module in **src/Modules/App/Module.php** adding these lines in corresponding functions :
+
+```
+[in register():]
+        $this->registerNode('room', Room::class, ['admin', 'add', 'edit', 'delete']);
+[...in boot():]
+        $this->addNodeToMenu('Rooms', 'room', 'admin');
+```
+
+Nothing new here. Now, the relation can be added. In Conference class, replace `use Sintattica\Atk\Attributes\ListAttribute;` by `use Sintattica\Atk\Relations\ManyToOneRelation;` and the line defining room attribute by :
+
+```
+        $this->add(new ManyToOneRelation('room', Attribute::AF_OBLIGATORY | Attribute::AF_SEARCHABLE | ManyToOneRelation::AF_RELATION_AUTOLINK, 'app.room'));
+```
+
+What is this ? Let's split the line :
+
+- **ManyToOneRelation** : is just one kind of relation. All relation types are listed in [src/Relations](../src/Relations/). A relation is an attribute (Relation class extends Attribute class) that links modules together. And a ManyToOneRelation is a relation where nodes of Class A each have a reference to a node of Class B, and many A-nodes can link to the same B-node. Here, several Conferences can take place in the same room.
+- Options : a Relation being an Attribute, you can use common Attribute options, but also per-relation specific options. Here, AF_RELATION_AUTOLINK add a link from the conference node to the room (the link is on the title of the room).
+- 'app.room' : this is the target Class of object linked here, in the form **section.node**, where **Section** is the directory under **Modules** and **Node.php** is a file under **Section**
+
+That's it. If you go to "Conferences" page on your webapplication, you can see the column "room" values linking to rooms in their respective view page.
+
+Is it possible to add the list of the conferences taking place in a specific room in the room view page ? It would be a little bit redundant, because it's already possible to filter conferences by room in the "Conferences" page, but yes, it's possible with a OneToMany relation. In **src/Modules/App/Room.php**, just add these to lines :
+
+```
+use Sintattica\Atk\Relations\OneToManyRelation;
+[...]
+        $this->add(new OneToManyRelation('conferences', Attribute::AF_HIDE_LIST, 'app.conference', 'room'));
+```
+
+The OneToManyRelation works quite like ManyToOneRelation, but you also have to specify the column in the target database table that references the ID of current Node. Here, in app_conference, that's the room column that holds the room id. The option AF_HIDE_LIST, as exposed earlier, doesn't show the conferences list in the page listing all rooms. They appears on the specific room view page or on edit pages.
+
+## Speakers and conference : a many-to-many relation
+
  *this is work in progress *
