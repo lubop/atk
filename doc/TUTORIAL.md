@@ -389,7 +389,6 @@ namespace App\Modules\App;
 use Sintattica\Atk\Core\Node;
 use Sintattica\Atk\Attributes\Attribute;
 use Sintattica\Atk\Attributes\NumberAttribute;
-use Sintattica\Atk\Security\SecurityManager;
 
 class Room extends Node
 {
@@ -440,6 +439,116 @@ use Sintattica\Atk\Relations\OneToManyRelation;
 
 The OneToManyRelation works quite like ManyToOneRelation, but you also have to specify the column in the target database table that references the ID of current Node. Here, in app_conference, that's the room column that holds the room id. The option AF_HIDE_LIST, as exposed earlier, doesn't show the conferences list in the page listing all rooms. They appears on the specific room view page or on edit pages.
 
-## Speakers and conference : a many-to-many relation
+## Speakers and conferences : a many-to-many relation
+
+An obvious improvement of the data structure we've put in place is to reference speakers on a separate database. So let's do it with two more tables (or just use [tutorial-data/03_manytomany.sql](https://github.com/Samuel-BF/atk-tutorial/blob/master/tutorial-data/02_relations) which comes with sample data) :
+
+```
+DROP TABLE IF EXISTS `app_speaker`;
+CREATE TABLE `app_speaker` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `name` varchar(255) DEFAULT NULL,
+  `description` text DEFAULT NULL,
+  `URL` varchar(200) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+DROP TABLE IF EXISTS `app_conference_speaker̀`;
+CREATE TABLE `app_conference_speaker` (
+ `speaker_id` int unsigned NOT NULL,
+ `conference_id` int unsigned NOT NULL,
+  PRIMARY KEY (`speaker_id`, `conference_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+ALTER TABLE `app_conference` DROP `speakers`;
+```
+
+The 'app_conference_speaker' glue table is needed because each conference may have several speakers and each speaker may talk in several conferences. We need a similar glue node in **src/Modules/App/**, let's call it **Conference_Speaker** :
+
+```
+<?php
+
+namespace App\Modules\app;
+
+use Sintattica\Atk\Attributes\Attribute;
+use Sintattica\Atk\Core\Node;
+use Sintattica\Atk\Relations\ManyToOneRelation;
+
+class Conference_Speaker extends Node
+{
+    function __construct($nodeUri)
+    {
+        parent::__construct($nodeUri);
+        $this->setTable('app_conference_speaker');
+
+        $this->add(new ManyToOneRelation('speaker_id', Attribute::AF_PRIMARY, 'app.speaker'));
+        $this->add(new ManyToOneRelation('conference_id', Attribute::AF_PRIMARY, 'app.conference'));
+    }
+}
+```
+
+This glue node must be referenced in **src/Modules/App/Module.php** :
+
+```
+        $this->registerNode('conference_speaker', Conference_Speaker::class);
+```
+
+But here, there is no need to add an item in the menu corresponding to this node. Then, define the Speaker node type in **src/Modules/App/Speaker.php** :
+
+```
+<?php
+
+namespace App\Modules\App;
+
+use Sintattica\Atk\Core\Node;
+use Sintattica\Atk\Attributes\Attribute;
+use Sintattica\Atk\Attributes\UrlAttribute;
+
+class Speaker extends Node
+{
+    function __construct($nodeUri)
+    {
+        parent::__construct($nodeUri, Node::NF_ADD_LINK | Node::NF_EDITAFTERADD);
+        $this->setTable('app_speaker');
+
+        $this->add(new Attribute('id', Attribute::AF_AUTOKEY));
+        $this->add(new Attribute('name', Attribute::AF_OBLIGATORY));
+        $this->add(new Attribute('description', Attribute::AF_HIDE_LIST));
+        $this->add(new UrlAttribute('URL', UrlAttribute::AF_POPUP));
+
+        $this->setDescriptorTemplate('[name]');
+    }
+}
+```
+
+And reference it in **src/Modules/App/Module.php** :
+```
+[in register():]
+        $this->registerNode('speaker', Speaker::class, ['admin', 'add', 'edit', 'delete']);
+[...in boot():]
+        $this->addNodeToMenu('Speakers', 'speaker', 'admin');
+```
+
+Nothing new for the moment, except the UrlAttribute which will holds ... well, you guess.
+
+Now it's time to reference speakers in the Conference node definition : remove the previous 'speakers' attribute definition and add :
+
+```
+use Sintattica\Atk\Relations\ManyToManySelectRelation;
+[...]
+        $this->add(new ManyToManySelectRelation('speakers', Attribute::AF_SEARCHABLE | ManyToManyRelation::AF_MANYTOMANY_DETAILVIEW, 'app.conference_speaker', 'app.speaker'));
+```
+
+There's more arguments than previously. Let's treat these arguments one by one :
+
+- **ManyToManySelectRelation** is one kind of many-to-many relation. When you edit a conference, you find speakers by typing few letters in a field and it prints you matching speakers.
+- **speakers** is the name of the column. Here, it doesn't correspond to a field in the database (in contrast to previous arguments).
+- **AF_MANYTOMANY_DETAILVIEW** adds a link on speaker names to the speaker page (similar to AF_RELATION_AUTOLINK in ManyToOneRelation).
+- **app.conference_speaker** is the glue node class defined in src/Modules/App/Module.php
+- **app.speaker** is the target node class.
+
+And that's it. You can test and try to add speakers to listed conferences. It works as expected. I also encourage you to test other types of many-to-many relations (ManyBoolRelation, ManyToManyListRelation and ShuttleRelation) : they define how you select target nodes when editing a conference node.
+
+As an exercise, you can add the list of conferences a speaker gives in the speaker view page. It takes only 2 more lines.
 
  *this is work in progress *
