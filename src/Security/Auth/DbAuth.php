@@ -205,6 +205,10 @@ class DbAuth extends AuthInterface
             $query .= " AND $accountenableexpression";
         }
         $recs = $db->getRows($query);
+        // Remove (hashed) password from columns (security reasons)
+        foreach (array_keys($recs) as $i) {
+            unset($recs[$i][Config::getGlobal('auth_passwordfield')]);
+        }
 
         return $recs;
     }
