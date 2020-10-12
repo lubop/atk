@@ -2,10 +2,12 @@
 
 namespace Sintattica\Atk\Attributes;
 
+use Sintattica\Atk\Attributes\Attribute;
 use Sintattica\Atk\Core\Tools;
 use Sintattica\Atk\DataGrid\DataGrid;
 use Sintattica\Atk\Db\Db;
 use Sintattica\Atk\Db\Query;
+use Sintattica\Atk\Ui\Page;
 
 /**
  * The atkTimeAttribute class represents an attribute of a node
@@ -24,12 +26,14 @@ class TimeAttribute extends Attribute
     private $m_beginTime = 0;
     private $m_endTime = 23;
 
+    protected $m_locale = 'sk';
+
     /**
      * Granularity of proposed time (in seconds)
      *
      * @var int
      */
-    private $m_steps = 900; // 15 minutes
+    private $m_steps = 15; // 15 minutes
 
     /**
      * The database fieldtype.
@@ -59,8 +63,68 @@ class TimeAttribute extends Attribute
             }
             $steps = $minimalInterval;
         }
-        $this->m_steps = $this->hasFlag(self::AF_TIME_SECONDS) ? $steps : 60 * $steps;
+        $this->m_steps = $steps;
     }
+
+
+    public function registerScriptsAndStyles($fieldprefix)
+    {
+        $htmlId = $this->getHtmlId($fieldprefix);
+
+        $page = Page::getInstance();
+
+
+        $opts = [
+            "format: 'HH:mm'",
+            "formatTime:'HH:mm'",
+            "inputFormat: 'HH:mm'",
+            "defaultTime:''",
+            "hours: true",
+	        "minutes: true",
+            "seconds: false",
+            "ampm: false",
+            "lang: 'sk'",
+            "datepicker:false",
+            "allowBlank: true",
+            "twelveHoursFormat: false",
+            "steps: [1, " . $this->m_steps, "1,1]"
+        ];
+
+        /*
+        if ($this->m_beginTime !== null) {
+            $opts[] = "minTime: '".str_pad($this->m_beginTime,2,'0', STR_PAD_LEFT).":00'";
+        }
+        if ($this->m_endTime !== null) {
+            $opts[] = "maxTime: '".$this->m_endTime.":59'";
+        }
+        */
+
+
+        $page->register_loadscript("
+                //$.datetimepicker.setLocale('".$this->m_locale."');
+                $('#$htmlId').timepickeralone({".implode(', ', $opts)."});
+                ");
+
+    }
+
+    public function setSteps($step = 15)
+    {
+        $this->m_steps = $step;
+        return $this;
+    }
+
+    public function setTimeMax($max = null)
+    {
+        $this->m_time_max = $max;
+        return $this;
+    }
+
+    public function setLocale($locale)
+    {
+        $this->m_locale = $locale;
+        return $this;
+    }
+
 
     /**
      * Converts a date string (HH:II:SS or HHIISS) to a valid
@@ -139,6 +203,8 @@ class TimeAttribute extends Attribute
      */
     public function edit($record, $fieldprefix, $mode)
     {
+        $this->registerScriptsAndStyles($fieldprefix);
+
         if ((($this->m_initialValue == "NOW" && $mode == "add") ||
             ($this->m_initialValue == "" && $this->hasFlag(self::AF_OBLIGATORY)) && !$this->hasFlag(self::AF_TIME_DEFAULT_EMPTY))
         ) {
@@ -176,10 +242,17 @@ class TimeAttribute extends Attribute
         }
         if ($this->hasFlag(self::AF_OBLIGATORY))
         {
-            $required = ' required';
+            // $required = ' required';
         }
 
-        return '<input type="time" name="'.$name.'" value="'.htmlspecialchars($value).'" step="'.((int)$this->m_steps).'" class="atktimeattribute form-control"'.$onChangecode.$begin.$end.$required.' />';
+        $style = '';
+        $class = $this->getCSSClassAttribute(['form-control', 'atktimeattribute']);
+        foreach($this->getCssStyles('edit') as $k => $v) {
+            $style .= "$k:$v;";
+        }
+
+
+        return '<input type="text" id="'.$id.'"  name="'.$name.'" value="'.htmlspecialchars($value).'"  style="'.$style.'" '.$class.' '.$onChangeCode.$required.' />';
     }
 
     /**

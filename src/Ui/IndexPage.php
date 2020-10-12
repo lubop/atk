@@ -9,6 +9,7 @@ use Sintattica\Atk\Core\Node;
 use Sintattica\Atk\Core\Tools;
 use Sintattica\Atk\Security\SecurityManager;
 use Sintattica\Atk\Session\SessionManager;
+use Sintattica\Atk\Ui\Page;
 
 /**
  * Class that generates an index page.
@@ -80,18 +81,35 @@ class IndexPage
             /** @var Menu $menuClass */
             $menuClass = Config::getGlobal('menu');
             $menuObj = $menuClass::getInstance();
-            $user = $this->m_username ?: $this->m_user['name'];
-
-
-            if (Config::getGlobal('menu_show_user') && $user) {
-                $menuObj->addMenuItem($user,'', 'main', true, 0, '', '', 'right', true);
+            if ($this->m_user['access_level'] === 9999999) {
+                $user = ucfirst($this->m_user['name']);
+            } else {
+                $user = $this->m_user['firstname'] . ' ' . $this->m_user['lastname'];
             }
 
+            if (Config::getGlobal('menu_show_user') && $user) {
+                $menuObj->addMenuItem('<span class="px-2">' . $user . '</span>| ','', 'main', true, 0, '', '', 'right', true);
+            }
+
+            $user = SecurityManager::atkGetUser();
+            if ($user['access_level']=="9999999") {
+
+            } else {
+
+                $sm = SessionManager::getInstance();
+                $menuObj->addMenuItem('<span class="icon-user"></span> Môj účet',
+                    Tools::dispatch_url('auth.account', 'edit', ['atkselector'=>$user['id'], 'atklevel' => 0, 'atkprevlevel' => -1, 'atkstackid'=>$sm->atkStackID()]),                    'main', true, 0, '', '', 'right', true
+                );
+            }
+
+
             if (Config::getGlobal('menu_show_logout_link') && $user) {
-                $menuObj->addMenuItem('<span class="glyphicon glyphicon-log-out"></span>',
+                $menuObj->addMenuItem('<span class="icon-switch2"></span> Odhlásiť',
                     Config::getGlobal('dispatcher').'?atklogout=1', 'main', true, 0, '', '', 'right', true
                 );
             }
+
+
 
             $top = $this->m_ui->renderBox(array(
                 'title' => ($this->m_title != '' ?: Tools::atktext('app_title')),
@@ -115,6 +133,7 @@ class IndexPage
         $this->m_output->output($content);
         $this->m_output->outputFlush();
     }
+
 
     /**
      * Set the title of the page.
@@ -286,4 +305,5 @@ class IndexPage
 
         return $this->m_ui->render('actionpage.tpl', array('blocks' => $blocks, 'title' => Tools::atktext('access_denied')));
     }
+
 }

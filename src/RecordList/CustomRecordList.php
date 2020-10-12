@@ -2,6 +2,7 @@
 
 namespace Sintattica\Atk\RecordList;
 
+use App\Customs\Utils\ExcelExport;
 use Sintattica\Atk\Core\Node;
 use Sintattica\Atk\Core\Tools;
 use Sintattica\Atk\Attributes\Attribute;
@@ -76,6 +77,7 @@ class CustomRecordList extends RecordList
             $empty = '&nbsp;';
         }
 
+        $excel_header = [];
 
         if ($titlerow) {
             $output .= $sol;
@@ -88,6 +90,8 @@ class CustomRecordList extends RecordList
                 $musthide = (is_array($suppressList) && Tools::count($suppressList) > 0 && in_array($attribname, $suppressList));
                 if (!$this->isHidden($p_attrib) && !$musthide) {
                     $output .= $sof.$this->eolreplace($p_attrib->label(), $rfeplace).$eof.$fsep;
+
+                    $excel_header[] = $this->eolreplace($p_attrib->label(), $rfeplace);
                 }
             }
 
@@ -99,8 +103,10 @@ class CustomRecordList extends RecordList
             $output .= $eol;
         }
 
+        $excel_values = [];
         // Display the values
         for ($i = 0, $_i = Tools::count($recordset); $i < $_i; ++$i) {
+            $excel_row = [];
             $output .= $sol;
             foreach (array_keys($this->m_node->m_attribList) as $attribname) {
                 $p_attrib = $this->m_node->m_attribList[$attribname];
@@ -121,9 +127,15 @@ class CustomRecordList extends RecordList
                     if (Tools::atkGetCharset() != '' && $decode) {
                         $value = Tools::atk_html_entity_decode(htmlentities($value, ENT_NOQUOTES), ENT_NOQUOTES);
                     }
+
                     $output .= $sof.($value == '' ? $empty : $value).$eof.$fsep;
+
+                    $excel_row[] = ($value==""?$empty:$value);
+
                 }
             }
+
+            $excel_values[] = $excel_row;
 
             if ($fsep) {
                 // remove separator at the end of line
@@ -144,6 +156,26 @@ class CustomRecordList extends RecordList
         // To a File
         if (!array_key_exists('filename', $outputparams)) {
             $outputparams['filename'] = 'achievo';
+        }
+
+
+        if ($this->m_exportcsv)
+        {
+            if ($mode === 'xls')
+            {
+                $exporter = new ExcelExport();
+                $exporter->export($excel_header, $excel_values, $outputparams["filename"]);
+
+            } else
+            {
+                $ext = ($type == '0' ? 'html' : 'csv');
+                $exporter = new FileExport();
+                $exporter->export($output, $outputparams['filename'], $ext, $ext, $compression);
+            }
+        }
+        else
+        {
+            return $output;
         }
 
         if ($this->m_exportcsv) {

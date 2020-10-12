@@ -2,11 +2,13 @@
 
 namespace Sintattica\Atk\Attributes;
 
-use Sintattica\Atk\Core\Config;
+use Sintattica\Atk\Attributes\Attribute;
 use Sintattica\Atk\Core\Tools;
 use Sintattica\Atk\DataGrid\DataGrid;
 use Sintattica\Atk\Db\Db;
 use Sintattica\Atk\Db\Query;
+use Sintattica\Atk\Ui\Page;
+
 /**
  * The DateAttribute class offers a date widget for date fields.
  *
@@ -42,14 +44,16 @@ class DateAttribute extends Attribute
      */
     const SORT_YEAR_ASC = 1;
     const SORT_YEAR_DESC = 2;
-    
-   /**
-    * Minimum and maximum values for this field
-    *
-    * @var array ['year', 'month', 'day']
-    */
+
+    /**
+     * Minimum and maximum values for this field
+     *
+     * @var array ['year', 'month', 'day']
+     */
     protected $m_date_min = null;
     protected $m_date_max = null;
+
+    protected $m_locale = 'sk';
 
     /**
     .* Formats for date on view and edit (edit only used with AF_DATE_STRING)
@@ -87,6 +91,115 @@ class DateAttribute extends Attribute
         $this->setDateMax($max);
     }
 
+
+    public function registerScriptsAndStyles($fieldprefix)
+    {
+        $htmlId = $this->getHtmlId($fieldprefix);
+
+        $page = Page::getInstance();
+
+
+        $opts = [
+            "format: '".convertPHPToMomentFormat($this->m_date_format_edit)."'",
+            "formatDate: '".convertPHPToMomentFormat($this->m_date_format_edit)."'",
+            "lang: 'sk'",
+            "timepicker:false",
+            "allowBlank: true",
+            "likeXDSoftDateTimePicker: true",
+            "hideOnBlur: true",
+            "norange: true",
+            "cells: [1, 1]",
+            "resizeButton: false",
+            "fullsizeButton: false",
+            "fullsizeOnDblClick: false",
+            "clearButtonInButton: true",
+            "animation: false",
+            "withoutBottomPanel: true",
+            "i18n: { 'sk' : { 'Select date' : 'Vyberte dátum','Select week #' : 'Vyberte týždeň #','Select period' : 'Vyberte rozsah','Open fullscreen' : 'Celá obrazovka','Close' : 'Zavrieť','OK' : 'OK','Choose period' : 'Vyberte rozsah' }}",
+
+        ];
+
+        if ($this->m_date_max !== null) {
+            $opts[] = "maxDate: '".self::format($this->m_date_max, 'd.m.Y')."'";
+        }
+        if ($this->m_date_min !== null) {
+            $opts[] = "minDate: '".self::format($this->m_date_min, 'd.m.Y')."'";
+        }
+
+
+        $page->register_loadscript("
+                // $.datetimepicker.setLocale('".$this->m_locale."');
+                $('#$htmlId').periodpicker({".implode(', ', $opts)."});
+                ");
+
+    }
+
+    public function registerScriptsAndStylesForSearch($fieldprefix)
+    {
+        $htmlId = $this->getHtmlId($fieldprefix);
+
+        $page = Page::getInstance();
+
+
+        $opts = [
+            "end: '#{$htmlId}_end'",
+            "format: '".convertPHPToMomentFormat($this->m_date_format_edit)."'",
+            "formatDate: '".convertPHPToMomentFormat($this->m_date_format_edit)."'",
+            "formatDecoreDateWithYear: '".convertPHPToMomentFormat($this->m_date_format_edit)."'",
+            "lang: 'sk'",
+            "cells: [1, 3]",
+            "yearsLine: false",
+            "title: false",
+            "timepicker:false",
+            "allowBlank: true",
+            "resizeButton: false",
+            "fullsizeButton: false",
+	        "fullsizeOnDblClick: false",
+            "clearButtonInButton: true",
+            "i18n: { 'sk' : { 'Select week #' : 'Vyberte týždeň #','Select period' : 'Vyberte rozsah','Open fullscreen' : 'Celá obrazovka','Close' : 'Zavrieť','OK' : 'OK','Choose period' : 'Vyberte rozsah' }}",
+            "onOkButtonClick: function() { $('#{$htmlId}').val(this.startinput.val() + '-' + this.endinput.val()) }",
+            "onClearButtonClick: function() { $('#{$htmlId}').val(''); }"
+        ];
+
+        $page->register_loadscript("
+                $('#{$htmlId}_start').periodpicker({".implode(', ', $opts)."});
+                ");
+    }
+
+    public function registerScriptsAndStylesForExtendedSearch($fieldprefix)
+    {
+        $htmlId = $this->getHtmlId($fieldprefix);
+
+        $page = Page::getInstance();
+
+
+        $opts = [
+            "format: '".convertPHPToMomentFormat($this->m_date_format_edit)."'",
+            "formatDate: '".convertPHPToMomentFormat($this->m_date_format_edit)."'",
+            "lang: 'sk'",
+            "timepicker:false",
+            "allowBlank: true",
+            "likeXDSoftDateTimePicker: true",
+            "hideOnBlur: true",
+            "norange: true",
+            "cells: [1, 1]",
+            "resizeButton: false",
+            "fullsizeButton: false",
+            "fullsizeOnDblClick: false",
+            "clearButtonInButton: true",
+            "animation: false",
+            "withoutBottomPanel: true",
+            "i18n: { 'sk' : { 'Select date' : 'Vyberte dátum','Select week #' : 'Vyberte týždeň #','Select period' : 'Vyberte rozsah','Open fullscreen' : 'Celá obrazovka','Close' : 'Zavrieť','OK' : 'OK','Choose period' : 'Vyberte rozsah' }}",
+
+        ];
+        $page->register_loadscript("
+                //$.datetimepicker.setLocale('".$this->m_locale."');
+                $('#{$htmlId}_from').periodpicker({".implode(', ', $opts)."});
+                $('#{$htmlId}_to').periodpicker({".implode(', ', $opts)."});
+                ");
+
+    }
+
     public function postInit()
     {
         parent::postInit();
@@ -113,7 +226,14 @@ class DateAttribute extends Attribute
         } else {
             $this->m_date_format_edit = 'F j Y';
         }
-     }
+    }
+
+
+    public function setLocale($locale)
+    {
+        $this->m_locale = $locale;
+        return $this;
+    }
 
     /**
      * Set the format for the boxes in view mode.
@@ -150,7 +270,7 @@ class DateAttribute extends Attribute
      */
     public function setDateMin($min = null)
     {
-        $this->m_date_max = $this->dateArray($min);
+        $this->m_date_min = $this->dateArray($min);
     }
 
     /**
@@ -176,10 +296,60 @@ class DateAttribute extends Attribute
                 } else {
                     return null;
                 }
-            // Then test for integers (as strings or as int) and parse them as timestamps
+                // Then test for integers (as strings or as int) and parse them as timestamps
             } elseif (is_int($input) or !preg_match('/[^0-9]/', $input)) {
                 $dateObject = new \DateTime('@'.$input);
-            // Then try to get the date as specified by the format
+                // Then try to get the date as specified by the format
+            } elseif (!empty($format)) {
+                $dateObject = \DateTime::createFromFormat($format, $input);
+                if ($dateObject === false or $dateObject->getLastErrors()['error_count'] >= 1) {
+                    $dateObject = null;
+                }
+            }
+            // Then, if other options failed, try as a generic string (will match "now", "yesterday", "2014-05-03" ...)
+            // if the string is not matched, it will raise an exception that we catch few lines later
+            // Formats understood by PHP : https://www.php.net/manual/en/datetime.formats.date.php
+            // note : aa/bb/cccc will be interpreted the US way : aa = month, bb = day, cccc = year.
+            if (is_null($dateObject)) {
+                $dateObject = new \DateTime($input);
+            }
+        } catch (\Exception $e) {
+            return null;
+        }
+        return [
+            'year' => $dateObject->format('Y'),
+            'month' => $dateObject->format('m'),
+            'day' => $dateObject->format('d')
+        ];
+    }
+
+    /**
+     * Return a valid internal state for date object
+     *
+     * @param mixed $input as an array, a string (parsed by DateTime::construct) or a timestamp (int)
+     * @param string $format to parse date if it's a string. If not specified or if it fails,
+     *                       we'll try with DateTime::__construct
+     *
+     * @return null|array
+     */
+    public static function dateArrayStatic($input, $format = null)
+    {
+        if (empty($input)) {
+            return null;
+        }
+        $dateObject = null;
+        try {
+            // First test if it's an array
+            if (is_array($input)) {
+                if (isset($input['year']) and isset($input['month']) and isset($input['day'])) {
+                    $dateObject = new \DateTime($input['year'].'-'.$input['month'].'-'.$input['day']);
+                } else {
+                    return null;
+                }
+                // Then test for integers (as strings or as int) and parse them as timestamps
+            } elseif (is_int($input) or !preg_match('/[^0-9]/', $input)) {
+                $dateObject = new \DateTime('@'.$input);
+                // Then try to get the date as specified by the format
             } elseif (!empty($format)) {
                 $dateObject = \DateTime::createFromFormat($format, $input);
                 if ($dateObject === false or $dateObject->getLastErrors()['error_count'] >= 1) {
@@ -257,6 +427,8 @@ class DateAttribute extends Attribute
      */
     public function edit($record, $fieldprefix, $mode)
     {
+        $this->registerScriptsAndStyles($fieldprefix);
+
         $id = $this->getHtmlId($fieldprefix);
         $name = $this->getHtmlName($fieldprefix);
 
@@ -283,18 +455,25 @@ class DateAttribute extends Attribute
      */
     public function draw($record, $id, $name, $fieldprefix = '', $postfix = '', $mode = '', $obligatory = false)
     {
-        $result = '<input id="'.$id.'" name="'.$name.$postfix.'" ';
+
+        $result = '';
+        $result .= '<div class="form-group form-group-feedback form-group-feedback-left">';
+
+
+        $result .= '<input autocomplete="off" id="'.$id.'" name="'.$name.$postfix.'" ';
         $result .= ' '.$this->getCSSClassAttribute(['form-control', 'atkdateattribute']);
         if ($obligatory) {
-            $result .= ' required';
+            // $result .= ' required';
         }
         if (Tools::count($this->m_onchangecode)) {
             $this->_renderChangeHandler($fieldprefix);
             $result .= ' onChange="'.$id.'_onChange(this);"';
         }
-        
+
         $value = $record[$this->fieldName()];
         $txtValue = '';
+        $txtValue = static::format($value, $this->m_date_format_edit);
+        /*
         if (!is_null($value)) {
             if($this->hasFlag(static::AF_DATE_STRING)) {
                 $txtValue = static::format($value, $this->m_date_format_edit);
@@ -302,27 +481,39 @@ class DateAttribute extends Attribute
                 $txtValue = static::dateString($value);
             }
         }
+        */
         if (!empty($txtValue)) {
             $result .= ' value="'.htmlspecialchars($txtValue).'"';
+        } else {
+            $result .= ' value=""';
         }
 
+        $result .= ' type="text"';
+        /*
         if ($this->hasFlag(static::AF_DATE_STRING)) {
             $result .= ' type="text"';
         } else {
             $result .= ' type="date"';
         }
+        */
         if($placeholder = $this->getPlaceholder()){
             $result .= ' placeholder="'.htmlspecialchars($placeholder).'"';
         }
 
+        /*
         if ($this->m_date_min !== null) {
             $result .= ' min="'.static::dateString($this->m_date_min).'"';
         }
         if ($this->m_date_max !== null) {
             $result .= ' max="'.static::dateString($this->m_date_max).'"';
         }
+        */
 
         $result .= ' />';
+
+        $result .= '<div class="form-control-feedback"><i class="icon-calendar22"></i></div>';
+
+        $result .= '</div>';
 
         return $result;
     }
@@ -363,20 +554,38 @@ class DateAttribute extends Attribute
         if (!$extended) {
             // We switch value to string format for presetting in the form
             $value = $record[$this->fieldName()];
+            $val_from = $val_to = null;
             if (is_array($value)) {
                 $keys = array_keys($value);
                 if (in_array('from', $keys) and in_array('to', $keys)) {
                     $record[$this->fieldName()] = "{$value['from']}-{$value['to']}";
+                    $val_from = $value['from'];
+                    $val_to = $value['to'];
                 } elseif (in_array('from', $keys) or in_array('to', $keys)) {
                     $record[$this->fieldName()] = $value[$keys[0]];
+                    $val_from = $value[$keys[0]];
+
                 } else {
                     $record[$this->fieldName()] = static::dateString($record[$this->fieldName()]);
+                    $val_from = $record[$this->fieldName()];
+                }
+            } else {
+                if (strpos($value, '-') !== false) {
+                    list ($val_from, $val_to) = explode('-', $value);
                 }
             }
 
+
             $maxSize = $this->m_maxsize;
             $this->m_maxsize = 25; // temporary increase max size to allow from/to dates
-            $result = parent::search($record, $extended, $fieldprefix);
+
+
+            $id = $this->getHtmlId($fieldprefix);
+            $this->registerScriptsAndStylesForSearch($fieldprefix);
+            //$result = parent::search($record, $extended, $fieldprefix);
+            $result = $this->dt_search($record, $extended, $fieldprefix);
+            $result .= '<input type="text" id="'.$id.'_start" value="'.$val_from.'">';
+            $result .= '<input type="hidden" id="'.$id.'_end" value="'.$val_to.'">';
             $this->m_maxsize = $maxSize;
 
             return $result;
@@ -387,6 +596,9 @@ class DateAttribute extends Attribute
             $record[$this->fieldName()] = null;
         }
 
+
+        $this->registerScriptsAndStylesForExtendedSearch($fieldprefix);
+
         $id = $this->getHtmlId($fieldprefix);
         $name = $this->getSearchFieldName($fieldprefix);
 
@@ -396,6 +608,35 @@ class DateAttribute extends Attribute
         $res .= '&nbsp;'.Tools::atktext('until').': '.$this->draw($rec, $id.'_to', $name, 'atksearch_AE_'.$fieldprefix, '_AE_to', 'search');
 
         return $res;
+    }
+
+
+    public function dt_search($atksearch, $extended = false, $fieldprefix = '', DataGrid $grid = null)
+    {
+        $id = $this->getHtmlId($fieldprefix);
+        $name = $this->getSearchFieldName($fieldprefix);
+
+        $value = $atksearch[$this->getHtmlName()] ?? '';
+
+        $style = '';
+        $type = $extended ? 'extended_search':'search';
+        foreach($this->getCssStyles($type) as $k => $v) {
+            $style .= "$k:$v;";
+        }
+
+        $class = $this->getCSSClassAttribute(['form-control']);
+        $result = '';
+
+        $result .= '<input type="hidden"';
+        $result .= ' id="'.$id.'"';
+        $result .= ' '.$class;
+        $result .= ' name="'.$name.'"';
+        $result .= ' value="'.htmlentities($value).'"';
+        $result .= $this->m_searchsize > 0 ? ' size="'.$this->m_searchsize.'"' : '';
+        $result .= $style != '' ? ' style="'.$style.'"': '';
+        $result .= ' />';
+
+        return $result;
     }
 
     /**
@@ -474,29 +715,29 @@ class DateAttribute extends Attribute
         $fieldname = $fieldname ? Db::quoteIdentifier($fieldname) : Db::quoteIdentifier($table, $this->fieldName());
 
         switch($fromval == null) {
-        case true:
-            switch($toval == null) {
             case true:
-                // Both null, do nothing
-                return null;
-            case false:
-                return $query->lessthanequalCondition($fieldname, $toval);
-            }
-            break;
-        case false:
-            switch($toval == null) {
-            case true:
-                return $query->greaterthanequalCondition($fieldname, $fromval);
-            case false:
-                // Both present : reorder if needed
-                if ($fromval > $toval) {
-                    $tmp = $fromval;
-                    $fromval = $toval;
-                    $toval = $tmp;
+                switch($toval == null) {
+                    case true:
+                        // Both null, do nothing
+                        return null;
+                    case false:
+                        return $query->lessthanequalCondition($fieldname, $toval);
                 }
-                return $query->betweenCondition($fieldname, $fromval, $toval);
-            }
-            break;
+                break;
+            case false:
+                switch($toval == null) {
+                    case true:
+                        return $query->greaterthanequalCondition($fieldname, $fromval);
+                    case false:
+                        // Both present : reorder if needed
+                        if ($fromval > $toval) {
+                            $tmp = $fromval;
+                            $fromval = $toval;
+                            $toval = $tmp;
+                        }
+                        return $query->betweenCondition($fieldname, $fromval, $toval);
+                }
+                break;
         }
         return null; // but you can't get there, even if you try very hard :)
     }
@@ -542,8 +783,8 @@ class DateAttribute extends Attribute
         // (value may contain such words when AF_DATE_STRING and m_date_edit_format contains 'F', 'M' or 'l')
         $localizedValue = parent::fetchValue($postvars);
         $dateWords = ['january', 'jan', 'february', 'feb', 'march', 'mar', 'april', 'apr', 'may', 'june', 'jun',
-                      'july', 'jul', 'august', 'aug', 'september', 'sep', 'october', 'oct', 'november', 'nov', 'december', 'dec',
-                      'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+            'july', 'jul', 'august', 'aug', 'september', 'sep', 'october', 'oct', 'november', 'nov', 'december', 'dec',
+            'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
         $localizedWords = array_map(function ($x) { return ucfirst(Tools::atktext($x)); }, $dateWords);
         $englishValue = str_ireplace($localizedWords, $dateWords, $localizedValue);
         return $this->dateArray($englishValue, $this->m_date_format_edit);

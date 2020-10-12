@@ -1102,4 +1102,24 @@ class OneToManyRelation extends Relation
     {
         return $this->m_excludes;
     }
+
+
+    /**
+     * Prefix the passed column name with the table name if there is no prefix in the column name yet.
+     *
+     * @param string $columnName
+     * @param string $destAlias
+     *
+     * @return string
+     */
+    public function _addTablePrefix($columnName, $destAlias = '')
+    {
+        $prefix = '';
+        if (strpos($columnName, '.') === false) {
+            $prefix = $destAlias ? $destAlias : ($this->m_destInstance->getTable());
+            $prefix .= '.';
+        }
+
+        return $prefix.$columnName;
+    }
 }

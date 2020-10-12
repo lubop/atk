@@ -2,6 +2,7 @@
 
 namespace Sintattica\Atk\Attributes;
 
+use Sintattica\Atk\Attributes\Attribute;
 use Sintattica\Atk\Core\Tools;
 use Sintattica\Atk\Db\Db;
 
@@ -18,13 +19,6 @@ class EmailAttribute extends Attribute
      * @access private
      */
     public $m_dnsSearch = false;
-
-    /**
-     * The database fieldtype.
-     * @access private
-     * @var int
-     */
-    public $m_dbfieldtype = Db::FT_STRING;
 
     /**
      * Constructor.
@@ -82,7 +76,7 @@ class EmailAttribute extends Attribute
         $email = $record[$this->fieldName()];
         //first check complete string
         if (!self::validateAddressSyntax($email)) {
-            Tools::triggerError($record, $this, 'error_invalid_email');
+            Tools::triggerError($record, $this->fieldName(), 'error_invalid_email');
         } else {
             if ($this->m_dnsSearch) {
                 //now check if domain exists, searches DNS for MX records

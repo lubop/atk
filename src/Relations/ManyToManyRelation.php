@@ -386,7 +386,7 @@ class ManyToManyRelation extends Relation
                 $descr = htmlspecialchars($descr);
             }
             if ($this->hasFlag(self::AF_MANYTOMANY_DETAILVIEW) && $this->m_destInstance->allowed('view')) {
-                $descr = Tools::href(Tools::dispatch_url($this->m_destination, 'view', array('atkselector' => $this->getDestination()->primaryKeyString($rec))),
+                $descr = Tools::href(Tools::dispatch_url($this->m_destination, 'view', array('atkselector' => $this->getDestination()->primaryKeyString($rec), 'ignore_session_tab' => true)),
                     $descr, SessionManager::SESSION_NESTED);
             }
             $recordset[] = $descr;
@@ -526,7 +526,8 @@ class ManyToManyRelation extends Relation
     {
         $selectedRecordsByKey = [];
 
-        if (isset($record[$this->fieldName()])) {
+        if (isset($record[$this->fieldName()]) && is_array($record[$this->fieldName()])) {
+
             foreach ($record[$this->fieldName()] as $selectedRecord) {
                 $selectedKey = is_array($selectedRecord[$this->getRemoteKey()]) ? $selectedRecord[$this->getRemoteKey()][$this->getDestination()->primaryKeyField()] : $selectedRecord[$this->getRemoteKey()];
                 $selectedRecordsByKey[$selectedKey] = $selectedRecord;

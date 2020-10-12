@@ -23,8 +23,23 @@ class Config
             }
         }
 
+
+        if (isset($_ENV['application_dir'])) {
+            self::$s_globals['application_dir'] = $_ENV['application_dir'];
+        }
+
+        if (isset($_ENV['application_config_dir'])) {
+            self::$s_globals['application_config_dir'] = $_ENV['application_config_dir'];
+        }
+
+        if (isset($_ENV['application_config'])) {
+            self::$s_globals['application_config'] = $_ENV['application_config'];
+        }
+
+
         // Get the application config
         $applicationConfig = self::getConfigValues(self::$s_globals['application_config']);
+
         if (is_array($applicationConfig) && Tools::count($applicationConfig)) {
             self::$s_globals = Tools::atk_array_merge_recursive(self::$s_globals, $applicationConfig);
         }

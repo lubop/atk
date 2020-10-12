@@ -2,6 +2,7 @@
 
 namespace Sintattica\Atk\Attributes;
 
+use Sintattica\Atk\Attributes\Attribute;
 use Sintattica\Atk\Core\Tools;
 use Sintattica\Atk\DataGrid\DataGrid;
 use Sintattica\Atk\Db\Db;
@@ -13,7 +14,7 @@ use Sintattica\Atk\Relations\ManyToOneRelation;
  * It corresponds to a DATETIME field in the database.
  *
  * Internally, it uses 2 attributes (m_time and m_date), and the record
- * value is represented as null (empty datetime) or an array: 
+ * value is represented as null (empty datetime) or an array:
  *   ['date' => dateval, 'time' => timeval]
  * where dateval is a valid array for DateAttribute (['year', 'month', 'day'])
  * and timeval is a valid array for TimeAttribute (['hour', 'minutes', seconds'])
@@ -23,6 +24,7 @@ use Sintattica\Atk\Relations\ManyToOneRelation;
  */
 class DateTimeAttribute extends Attribute
 {
+
     /**
      * The database fieldtype.
      * @access private
@@ -36,7 +38,7 @@ class DateTimeAttribute extends Attribute
      */
     public $m_time = null;
     public $m_date = null;
-    
+
     public $m_utcOffset = null;
     public $m_timezoneAttribute = null;
 
@@ -46,11 +48,16 @@ class DateTimeAttribute extends Attribute
      * @param string $name Name of the attribute
      * @param int $flags Flags for this attribute
      */
-    public function __construct($name, $flags = 0)
+    public function __construct($name, $flags = 0, $format_edit = 'd.m.Y', $format_view = 'd.m.Y', $steps = 15)
     {
         parent::__construct($name, $flags); // base class constructor
         $this->m_date = new DateAttribute($name.'_AE_date', $flags);
         $this->m_time = new TimeAttribute($name.'_AE_time', $flags);
+        $this->m_time->setSteps($steps);
+
+        $this->m_date->setFormatView($format_view);
+        $this->m_date->setFormatEdit($format_edit);
+
     }
 
     /**
@@ -214,7 +221,7 @@ class DateTimeAttribute extends Attribute
 
         return $this;
     }
-    
+
     /**
      * Returns a piece of html code that can be used in a form to edit this
      * attribute's value.
@@ -232,7 +239,7 @@ class DateTimeAttribute extends Attribute
         $dateEdit = $this->m_date->edit($record, $fieldprefix, $mode);
         $timeEdit = $this->m_time->edit($record, $fieldprefix, $mode);
 
-        return '<div class="DateTimeAttribute">'.$dateEdit.'<span> - </span>'.$timeEdit.'</div>';
+        return '<div class="DateTimeAttribute row"><div class="col-2" style="min-width:160px">'.$dateEdit.'</div><div class="col-1" style="min-width:90px">'.$timeEdit.'</div></div>';
     }
 
     /**

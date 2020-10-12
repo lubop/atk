@@ -2,6 +2,9 @@
 
 namespace Sintattica\Atk\Core;
 
+use Sintattica\Atk\Core\Atk;
+use Sintattica\Atk\Core\Tools;
+
 /**
  * The Module abstract base class.
  *

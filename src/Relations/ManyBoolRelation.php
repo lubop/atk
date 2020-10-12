@@ -5,6 +5,7 @@ namespace Sintattica\Atk\Relations;
 use Sintattica\Atk\Core\Config;
 use Sintattica\Atk\Core\Node;
 use Sintattica\Atk\Core\Tools;
+use Sintattica\Atk\Relations\ManyToManyRelation;
 use Sintattica\Atk\Session\SessionManager;
 use Sintattica\Atk\Ui\Page;
 
@@ -35,6 +36,8 @@ class ManyBoolRelation extends ManyToManyRelation
      */
     private $m_showDetailsLink = true;
 
+    private $m_cols = 1;
+
     /**
      * Return a piece of html code to edit the attribute.
      *
@@ -63,25 +66,33 @@ class ManyBoolRelation extends ManyToManyRelation
             $page->register_script(Config::getGlobal('assets_url').'javascript/profileattribute.js');
 
             if (!$this->hasFlag(self::AF_MANYBOOL_NO_TOOLBAR)) {
-                $result .= '<div align="left">[<a href="javascript:void(0)" onclick="ATK.ProfileAttribute.profile_checkAll(\''.$this->fieldName().'\'); return false;">'.Tools::atktext('check_all',
-                        'atk').'</a> | <a href="javascript:void(0)" onclick="ATK.ProfileAttribute.profile_checkNone(\''.$this->fieldName().'\'); return false;">'.Tools::atktext('check_none',
-                        'atk').'</a> | <a href="javascript:void(0)" onclick="ATK.ProfileAttribute.profile_checkInvert(\''.$this->fieldName().'\'); return false;">'.Tools::atktext('invert_selection',
-                        'atk').'</a>]</div>';
+                $result .= '<div align="left"><a class="btn border-transparent btn-outline-primary btn-sm" href="javascript:void(0)" onclick="ATK.ProfileAttribute.profile_checkAll(\''.$this->fieldName().'\'); return false;">'.Tools::atktext('check_all',
+                        'atk').'</a>  <a class="btn border-transparent btn-outline-primary btn-sm" href="javascript:void(0)" onclick="ATK.ProfileAttribute.profile_checkNone(\''.$this->fieldName().'\'); return false;">'.Tools::atktext('check_none',
+                        'atk').'</a>  <a class="btn border-transparent btn-outline-primary btn-sm" href="javascript:void(0)" onclick="ATK.ProfileAttribute.profile_checkInvert(\''.$this->fieldName().'\'); return false;">'.Tools::atktext('invert_selection',
+                        'atk').'</a></div>';
             }
 
-            $result .= '<div>';
-            for ($i = 0; $i < $total_records; ++$i) {
+            $result .= PHP_EOL . PHP_EOL . '<div class="row ml-1">';
+            for ($i = 0; $i < $total_records; ++$i)
+            {
+                $cur = ($i+1);
                 $detailLink = '';
                 $sel = '';
                 $onchange = '';
                 $inputId = $this->getHtmlId($fieldprefix).'_'.$i;
 
-                if (in_array($this->m_destInstance->primaryKeyString($recordset[$i]), $selectedPk)) {
+
+
+//                if ($i>0 && (($this->m_cols === 1 && $i < $total_records-1) OR ($this->m_cols % $cur === 0))) $result .= '</div><div class="row ml-1">';
+
+                if (in_array($this->m_destInstance->primaryKey($recordset[$i]), $selectedPk)) {
                     $sel = 'checked';
                     if ($this->getShowDetailsLink() && !$this->m_linkInstance->hasFlag(Node::NF_NO_EDIT) && $this->m_linkInstance->allowed('edit')) {
-                        $linkRecord[$this->getLocalKey()] = $record;
-                        $linkRecord[$this->getRemoteKey()] = $recordset[$i];
-                        $selector = $this->m_linkInstance->primaryKeyString($linkRecord);
+                        $localPkAttr = $this->getOwnerInstance()->getAttribute($this->getOwnerInstance()->primaryKeyField());
+                        $localValue = $localPkAttr->value2db($record);
+                        $remotePkAttr = $this->getDestination()->getAttribute($this->getDestination()->primaryKeyField());
+                        $remoteValue = $remotePkAttr->value2db($recordset[$i]);
+                        $selector = $this->m_linkInstance->m_table.'.'.$this->getLocalKey().'='.$localValue.''.' AND '.$this->m_linkInstance->m_table.'.'.$this->getRemoteKey()."='".$remoteValue."'";
                         $detailLink = Tools::href(Tools::dispatch_url($this->m_link, 'edit', array('atkselector' => $selector)),
                             '['.Tools::atktext('edit', 'atk').']', SessionManager::SESSION_NESTED, true);
                     }
@@ -93,17 +104,35 @@ class ManyBoolRelation extends ManyToManyRelation
                 }
 
                 $value = $recordset[$i][$this->m_destInstance->primaryKeyField()];
-                $css = $this->getCSSClassAttribute('atkcheckbox');
+                $css = $this->getCSSClassAttribute(['atkcheckbox', 'form-check-input-styled']);
                 $label = $this->m_destInstance->descriptor($recordset[$i]);
-                $result .= '<div>';
-                $result .= '  <input type="checkbox" id="'.$inputId.'" name="'.$this->getHtmlName($fieldprefix).'[]['.$this->getRemoteKey().']" value="'.$value.'" '.$css.' '.$sel.$onchange.' />';
-                $result .= '  <label for="'.$inputId.'">'.$label.'</label>';
+                $result .= '<div class="form-check col-12 col-lg">';
+                $ch = '  <input type="checkbox" id="'.$inputId.'" name="'.$this->getHtmlName($fieldprefix).'[]['.$this->getRemoteKey().']" value="'.$value.'" '.$css.' '.$sel.$onchange.' />';
+                $result .= '  <label class="form-check-label" for="'.$inputId.'">'.$ch . $label.'</label>';
                 if ($detailLink != '') {
                     $result .= ' '.$detailLink;
                 }
                 $result .= '</div>';
+
+                if ($this->m_cols === 1)
+                {
+                    if ($i > 0 && $i<$total_records)
+                    {
+                        $result .= '</div>'.PHP_EOL.PHP_EOL.'<div class="row ml-1">';
+                    }
+                } else {
+                    if ($i > 0 && $i<$total_records-1)
+                    {
+                        if (($cur % $this->m_cols) == 0)
+                        {
+                            $result .= '</div>'.PHP_EOL.PHP_EOL.'<div class="row ml-1">';
+                        }
+                    }
+                }
+
+
             }
-            $result .= '</div>';
+            $result .= '</div>' . PHP_EOL . PHP_EOL;
         } else {
             $nodename = $this->m_destInstance->m_type;
             $modulename = $this->m_destInstance->m_module;
@@ -111,7 +140,7 @@ class ManyBoolRelation extends ManyToManyRelation
         }
 
         if (($this->hasFlag(self::AF_MANYBOOL_AUTOLINK)) && ($this->m_destInstance->allowed('add'))) {
-            $result .= Tools::href(Tools::dispatch_url($this->m_destination, 'add'), $this->getAddLabel(), SessionManager::SESSION_NESTED)."\n";
+            $result .= Tools::href(Tools::dispatch_url($this->m_destination, 'add'), $this->getAddLabel(), SessionManager::SESSION_NESTED, false,'class="mt-1 btn btn-success btn-sm"')."\n";
         }
 
         return $result;
@@ -140,4 +169,12 @@ class ManyBoolRelation extends ManyToManyRelation
 
         return $this;
     }
+
+    public function setCols($col_num)
+    {
+        $this->m_cols = $col_num;
+        return $this;
+    }
+
+
 }

@@ -292,8 +292,17 @@ class ViewEditBase extends ActionHandler
         }
         $tabList = array_filter($tabList, function($tab) { return $tab != 'alltabs'; });
 
-        $sessionTab = State::get($this->m_node->atkNodeUri().'_tab');
+        $sessionTab = null;
+
+        if ((int)Config::getGlobal('remember_tabs', 0) === 1) {
+            $sessionTab = State::get($this->m_node->atkNodeUri() . '_tab');
+        }
+        /*
+        if (!isset($this->m_postvars['ignore_session_tab'])) {
+            $sessionTab = State::get($this->m_node->atkNodeUri() . '_tab');
+        }*/
         $defaultTab = $this->m_node->resolveTab('');
+
         // Let's try tab from session :
         if (in_array($sessionTab, $tabList)) {
             $this->m_activeTab = $sessionTab;

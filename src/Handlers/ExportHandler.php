@@ -202,7 +202,7 @@ class ExportHandler extends ActionHandler
         $params['formstart'] .= $sm->formState();
         $params['formstart'] .= '<input type="hidden" name="phase" value="process"/>';
         if ($sm->atkLevel() > 0) {
-            $params['buttons'][] = Tools::atkButton(Tools::atktext('cancel', 'atk'), '', SessionManager::SESSION_BACK);
+            $params['buttons'][] = Tools::atkButton(Tools::atktext('cancel', 'atk'), '', SessionManager::SESSION_BACK, 'btn btn-danger');
         }
         $params['buttons'][] = '<input class="btn btn-primary" type="submit" value="'.Tools::atktext('export', 'atk').'"/>';
         $params['buttons'][] = '<input id="export_save_button" style="display:none;" value="'.Tools::atktext('save_export_selection',
@@ -284,6 +284,7 @@ class ExportHandler extends ActionHandler
             );
         }
 
+        /*
         $content .= $this->_getOptionsFormRow(
             null,
             Tools::atktext('delimiter', 'atk'),
@@ -295,6 +296,9 @@ class ExportHandler extends ActionHandler
             Tools::atktext('enclosure', 'atk'),
             '<input type="text" size="2" class="form-control" name="enclosure" value='.Config::getGlobal('export_enclosure', '&quot;').'>'
         );
+        */
+        $content .= '<input type="hidden" size="2" name="delimiter" value='.Config::getGlobal('export_delimiter', ';').'>';
+        $content .= '<input type="hidden" size="2" class="form-control" name="enclosure" value='.Config::getGlobal('export_enclosure', '&quot;').'>';
 
         $content .= $this->_getOptionsFormRow(
             null,
@@ -305,7 +309,7 @@ class ExportHandler extends ActionHandler
         $content .= $this->_getOptionsFormRow(
             null,
             Tools::atktext('export_generatetitlerow'),
-            '<input type="checkbox" name="generatetitlerow" class="atkcheckbox" value=1 '.(Config::getGlobal('export_titlerow_checked', true) ? 'checked' : '').'>'
+            '<input type="checkbox" name="generatetitlerow" class="form-check-input-styled atkcheckbox" value=1 '.(Config::getGlobal('export_titlerow_checked', true) ? 'checked' : '').'>'
         );
 
         return $content;
@@ -448,15 +452,21 @@ class ExportHandler extends ActionHandler
             $content .= '<div class="row attributes-group">';
 
             if ($tab != 'default') {
-                $content .= '<div class="col-sm-12 attributes-group-title">';
+
+                $bt = 'mt-3 border-top-1 border-top-grey-300';
+                if ($tab === '') {
+                    $tab = 'default';
+                    $bt = '';
+                }
+                $content .= '<div class="col-sm-12 attributes-group-title m-0 p-0 '.$bt.'"><h5 class="m-0 pt-1">';
                 $content .= Tools::atktext(["tab_$tab", $tab], $this->m_node->m_module, $this->m_node->m_type);
-                $content .= '</div>';
+                $content .= '</h5></div>';
             }
 
             foreach ($group as $item) {
                 $checked = $item['checked']?'CHECKED':'';
-                $content .= '<div class="col-xs-12 col-sm-4 col-md-3 col-lg-2 attributes-checkbox-container">';
-                $content .= '<label><input type="checkbox" name="export_'.$item['name'].'" class="atkcheckbox" value="export_'.$item['name'].'" '.$checked.'> '.$item['text'].'</label>';
+                $content .= '<div class="col-xs-12 col-sm-4 col-md-3 col-lg-2 attributes-checkbox-container form-check form-check-inline">';
+                $content .= '<label class="form-check-label"><input type="checkbox" name="export_'.$item['name'].'" class="atkcheckbox form-check-input-styled" value="export_'.$item['name'].'" '.$checked.'> '.$item['text'].'</label>';
                 $content .= '</div>';
             }
 
@@ -600,7 +610,7 @@ class ExportHandler extends ActionHandler
         }
 
         $filename = 'export_'.strtolower(str_replace(' ', '_', $this->getUi()->nodeTitle($node)));
-        $rl->render($node_bk, $recordset_new, '', $enclosure, $enclosure, "\r\n", 1, '', '', array('filename' => $filename), 'csv', $source['generatetitlerow'],
+        $rl->render($node_bk, $recordset_new, '', $enclosure, $enclosure, "\r\n", 1, '', '', array('filename' => $filename), 'xls', $source['generatetitlerow'],
             true, $delimiter);
 
         return true;

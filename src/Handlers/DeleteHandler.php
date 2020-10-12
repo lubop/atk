@@ -68,7 +68,7 @@ class DeleteHandler extends ActionHandler
     public function _checkAllowed()
     {
         $selector = $this->m_node->primaryKeyFromString($this->m_postvars['atkselector']);
-        $recordset = $this->m_node->select($atkselector)->mode('delete')->fetchAll();
+        $recordset = $this->m_node->select($selector)->mode('delete')->fetchAll();
         foreach ($recordset as $record) {
             if (!$this->allowed($record)) {
                 return false;
@@ -116,8 +116,13 @@ class DeleteHandler extends ActionHandler
     protected function _doDeleteDb()
     {
         $db = $this->m_node->getDb();
+
+        $selector = $this->m_node->primaryKeyFromString($this->m_postvars['atkselector']);
+        $record = $this->m_node->select($selector)->getFirstRow();
+
         if ($this->m_node->deleteDb($this->m_node->primaryKeyFromString($this->m_postvars['atkselector']))) {
             $db->commit();
+            $this->notify('delete', $record);
             $this->clearCache();
 
             return true;

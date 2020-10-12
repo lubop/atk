@@ -2,6 +2,7 @@
 
 namespace Sintattica\Atk\Core;
 
+use Sintattica\Atk\Core\Tools;
 use Sintattica\Atk\Security\SecurityManager;
 use Sintattica\Atk\Ui\Page;
 
@@ -9,26 +10,49 @@ class Menu
 {
     protected $menuItems = [];
 
-    protected $format_submenuparent = '
-            <li>
-                <a href="#">%s <span class="caret"></span></a>
-                <ul class="dropdown-menu">%s</ul>
+    protected $format_parent_single_link   = '<li class="nav-item"><a href="%s" class="navbar-nav-link" %s>%s</a></li>';
+    protected $format_parent_single_nolink = '<li class="nav-item"><p class="navbar-text pb-0">%s</p></li>';
+    protected $format_single_text = '<p class="navbar-text">%s</p>';
+
+    protected $format_submenu_with_child = '
+                    <div class="dropdown-submenu">
+                       <a href="#" class="dropdown-item dropdown-toggle">%s</a>
+						<div class="dropdown-menu">
+						    %s
+						</div>
+     				</div>
+					';
+
+    protected $format_submenu_wihout_child_link = '<a href="%s" class="dropdown-item">%s</a>';
+
+
+    //
+
+
+    protected $format_parent_with_submenu = '
+            <li class="nav-item dropdown">
+                <a href="#" class="navbar-nav-link dropdown-toggle" data-toggle="dropdown">%s</a>
+                <div class="dropdown-menu">
+                    %s
+                </div>
             <li>
         ';
+
 
     protected $format_submenuchild = '
-            <li>
+            <li class="nav-item">
                 <a href="#">%s <span class="caret"></span></a>
                 <ul class="dropdown-menu">%s</ul>
             <li>
         ';
 
-    protected $format_menu_left = '<ul class="main-nav nav navbar-nav navbar-left">%s</ul>';
-    protected $format_menu_right = '<ul class="main-nav nav navbar-nav navbar-right">%s</ul>';
+    protected $format_menu_left = '<ul class="navbar-nav navbar-nav-highlight pl-2">%s</ul>';
+    protected $format_menu_right = '<ul class="navbar-nav ml-auto">%s</ul>';
 
-    protected $format_single = '<li><a href="%s" %s>%s</a></li>';
+    protected $format_single_dropdown = '<a href="%s" %s class="dropdown-item">%s</a>';
+    protected $format_single = '<a href="%s" %s class="navbar-nav-link">%s</a>';
 
-    protected $format_single_text = '<li><p class="navbar-text">%s</p></li>';
+    //protected $format_single_item = '<li class="nav-item"><p class="navbar-text pb-0">%s</p></li>';
 
     /**
      * Get new menu object.
@@ -97,6 +121,7 @@ class Menu
     {
         $html_items = $this->parseItems($this->menuItems['main']);
 
+
         $html_items_left = array_filter($html_items, function ($el) {
             return $el['navbar'] == 'left';
         });
@@ -110,10 +135,12 @@ class Menu
             return $el['navbar'] == 'right';
         });
         $right = '';
+
         $content = $this->processMenu($html_items_right);
         if ($content) {
             $right = sprintf($this->format_menu_right, $this->processMenu($html_items_right));
         }
+
 
         return $left.$right;
     }
@@ -121,29 +148,66 @@ class Menu
     protected function processMenu($menu, $child = false)
     {
         $html = '';
+
         if (is_array($menu)) {
             foreach ($menu as $item) {
                 if ($this->isEnabled($item)) {
-                    if ($this->_hasSubmenu($item)) {
+
+                    if ($this->_hasSubmenu($item))
+                    {
                         $a_content = $this->_getMenuTitle($item);
                         $childHtml = $this->processMenu($item['submenu'], true);
-                        if ($child) {
-                            $html .= sprintf($this->format_submenuchild, $a_content, $childHtml);
-                        } else {
-                            $html .= sprintf($this->format_submenuparent, $a_content, $childHtml);
+                        if ($child)
+                        {
+                            if ($this->_hasSubmenu($item))
+                            {
+                                $sub_childHtml = $this->processMenu($item['submenu'], true);
+                                $html .= sprintf($this->format_submenu_with_child, $a_content, $sub_childHtml);
+                            } else
+                            {
+                                $html .= sprintf($this->format_submenu_wihout_child_link, $item['url'], $a_content) . PHP_EOL;
+                            }
+
+
+                        } else
+                        {
+                            $html .= sprintf($this->format_parent_with_submenu, $a_content, $childHtml);
                         }
-                    } else {
+                    } else
+                    {
                         $a_content = $this->_getMenuTitle($item);
 
                         $attrs = '';
-                        if ($item['target']) {
+                        if ($item['target'])
+                        {
                             $attrs .= ' target="'.$item['target'].'"';
                         }
 
-                        if ($item['url']) {
-                            $html .= sprintf($this->format_single, $item['url'], $attrs, $a_content);
+                        if (!empty($item['url']))
+                        {
+                            if ($child)
+                            {
+                                $html .= sprintf($this->format_single_dropdown, $item['url'], $attrs, $a_content) . PHP_EOL;
+                            } else
+                            {
+                                $html .= sprintf($this->format_parent_single_link, $item['url'], $attrs, $a_content) . PHP_EOL;
+                            }
                         } else {
-                            $html .= sprintf($this->format_single_text, $a_content);
+                            if ($child)
+                            {
+                                if ($this->_hasSubmenu($item))
+                                {
+                                    $sub_childHtml = $this->processMenu($item['submenu'], true);
+                                    $html .= sprintf($this->format_submenu_with_child, $a_content, $sub_childHtml);
+                                } else
+                                {
+                                    $html .= sprintf($this->format_single_text, $a_content) . PHP_EOL;
+                                }
+
+
+                            } else {
+                                $html .= sprintf($this->format_parent_single_nolink, $a_content) . PHP_EOL; // top menu bez deti len samotny link
+                            }
                         }
                     }
                 }

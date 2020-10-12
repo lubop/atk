@@ -346,7 +346,7 @@ class TmpFile
             fclose($this->m_fp);
             $this->m_mode = '';
             $this->m_fp = null;
-
+            @chmod($this->getPath(), 0664);
             return true;
         }
 
@@ -378,8 +378,11 @@ class TmpFile
         $path = '';
         foreach ($dirs as $element) {
             $path .= $element.'/';
-            if (!is_dir($path) && !mkdir($path)) {
+            if (!is_dir($path) && !mkdir($path, 0775)) {
                 return false;
+            }
+            if (file_exists($path)) {
+                @chmod($path, 0775);
             }
         }
 
